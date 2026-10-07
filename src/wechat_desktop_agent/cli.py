@@ -32,6 +32,9 @@ def _parser() -> argparse.ArgumentParser:
     initialize.add_argument("--account-binding-id", required=True)
     initialize.add_argument("--session-id", required=True)
     commands.add_parser("status")
+    doctor = commands.add_parser("doctor")
+    doctor.add_argument("--session-id", required=True)
+    doctor.add_argument("--activate-existing", action="store_true")
     read = commands.add_parser("read")
     read.add_argument("--session-id", required=True)
     page = commands.add_parser("page")
@@ -63,6 +66,9 @@ def main(argv: list[str] | None = None, *, backend_factory=None,
                                   agent_session_id=args.session_id)
         elif args.command == "status":
             result = channel.status()
+        elif args.command == "doctor":
+            result = channel.diagnose_header(session_id=args.session_id,
+                                             activate_existing=args.activate_existing)
         elif args.command == "read":
             result = channel.read(session_id=args.session_id)
         elif args.command == "page":
@@ -84,8 +90,12 @@ def main(argv: list[str] | None = None, *, backend_factory=None,
                 raise ChannelError("invalid_text", "synthetic reply must be 1–1000 characters")
             result = channel.send(session_id=args.session_id, request_id=args.request_id,
                                   text=text, synthetic_test=args.synthetic_test)
-        stdout.write(json.dumps({"ok": True, **result}, ensure_ascii=False) + "\n")
-        return 0
+        blocked_diagnostic = args.command == "doctor" and result["status"] == "blocked"
+        payload = {"ok": not blocked_diagnostic, **result}
+        if blocked_diagnostic:
+            payload["code"] = "native_blocked"
+        stdout.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        return 2 if blocked_diagnostic else 0
     except ChannelError as error:
         stdout.write(json.dumps({"ok": False, "code": error.code,
                                  "message": str(error)}, ensure_ascii=False) + "\n")

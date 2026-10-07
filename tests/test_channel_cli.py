@@ -36,6 +36,18 @@ class FakeDesktop:
         self.clock = clock
         self.counts = counts
 
+    def diagnose_header(self, *, activate_existing=False):
+        self.counts["doctor"] += 1
+        self.counts["activation_requested"] = activate_existing
+        return {"status": "header_observed", "observed_at": self.clock(),
+                "window": {"pid": 101, "window_id": 202, "bounds": [10, 20, 900, 800]},
+                "capture_healthy": True, "title_exact": True,
+                "matching_title_confidences": [0.5], "automatic_title_gate_passed": False,
+                "identity_verified": False, "body_read": False,
+                "activation_requested": activate_existing, "activated_existing": None,
+                "phase": "complete", "reason": "automatic_title_gate_not_passed",
+                "recognized_text": "private header must not be echoed"}
+
     def read(self):
         self.counts["read"] += 1
         return {"target_verified": True, "title_verified": True,
@@ -76,7 +88,7 @@ class ChannelTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.state_dir = Path(self.temp.name) / "private"
         self.clock = Clock()
-        self.counts = {"read": 0, "page": 0, "dispatch": 0, "constructed": 0}
+        self.counts = {"read": 0, "page": 0, "dispatch": 0, "constructed": 0, "doctor": 0}
 
         def factory(target, state_dir):
             self.counts["constructed"] += 1
@@ -186,6 +198,64 @@ class ChannelTests(unittest.TestCase):
                                              "direction": "unknown"}])
         self.assertNotIn("messages", result)
         self.assertNotIn("weak-ocr-fingerprint", str(result))
+
+    def test_doctor_low_confidence_does_not_authorize_or_echo_text(self):
+        self.init()
+        report = self.channel.diagnose_header(session_id="existing-agent-session")
+        self.assertTrue(report["title_exact"])
+        self.assertEqual(report["matching_title_confidences"], [0.5])
+        self.assertFalse(report["automatic_title_gate_passed"])
+        self.assertFalse(report["read_authorized"])
+        self.assertFalse(report["send_authorized"])
+        self.assertFalse(report["identity_verified"])
+        self.assertNotIn("recognized_text", report)
+        self.assertNotIn("private header", json.dumps(report))
+        self.assertFalse(self.counts["activation_requested"])
+        self.assertTrue(self.channel.status()["paused"])
+        self.assertEqual([self.counts[k] for k in ("read", "page", "dispatch")], [0, 0, 0])
+        before = self.counts["constructed"]
+        with self.assertRaises(ChannelError):
+            self.channel.diagnose_header(session_id="wrong-session", activate_existing=True)
+        self.assertEqual(self.counts["constructed"], before)
+
+    def test_doctor_rejects_fabricated_identity_or_body_read(self):
+        self.init()
+        for claim in ("identity_verified", "body_read"):
+            class InvalidDiagnosis(FakeDesktop):
+                def diagnose_header(inner, *, activate_existing=False):
+                    report = super().diagnose_header(activate_existing=activate_existing)
+                    report[claim] = True
+                    return report
+
+            channel = Channel(self.state_dir, backend_factory=lambda *args: InvalidDiagnosis(
+                args[0], args[1], self.clock, self.counts))
+            with self.assertRaises(ChannelError) as error:
+                channel.diagnose_header(session_id="existing-agent-session")
+            self.assertEqual(error.exception.code, "native_blocked")
+
+    def test_cli_doctor_preserves_blocked_phase_and_nonzero_exit(self):
+        self.init()
+
+        class CaptureBlocked(FakeDesktop):
+            def diagnose_header(inner, *, activate_existing=False):
+                report = super().diagnose_header(activate_existing=activate_existing)
+                report.update(status="blocked", phase="capture", capture_healthy=False,
+                              title_exact=False, matching_title_confidences=[],
+                              reason="precondition_unavailable")
+                return report
+
+        output = io.StringIO()
+        code = main(["--state-dir", str(self.state_dir), "doctor",
+                     "--session-id", "existing-agent-session", "--activate-existing"],
+                    backend_factory=lambda *args: CaptureBlocked(args[0], args[1], self.clock, self.counts),
+                    clock=self.clock, stdout=output)
+        report = json.loads(output.getvalue())
+        self.assertEqual(code, 2)
+        self.assertFalse(report["ok"])
+        self.assertEqual(report["phase"], "capture")
+        self.assertFalse(report["body_read"])
+        self.assertTrue(self.counts["activation_requested"])
+        self.assertEqual([self.counts[k] for k in ("read", "page", "dispatch")], [0, 0, 0])
 
     def test_page_bounded_and_evidence_required_for_each_viewport(self):
         self.init()

@@ -56,6 +56,7 @@ class Binding:
 
 
 class NativeBackend(Protocol):
+    def diagnose_header(self, *, activate_existing: bool = False) -> dict: ...
     def read(self) -> dict: ...
     def page(self, scroll_delta: int) -> dict: ...
     def dispatch(self, outbox: Outbox, session, request_id: str, text: str) -> dict: ...
@@ -283,6 +284,56 @@ class Channel:
                 "complete_context": False, "marks_all_read": False,
                 "message_id_available": False, "deduplication": "unavailable",
                 "cursor_available": False, "subscription": False}
+
+    def diagnose_header(self, *, session_id: str, activate_existing: bool = False) -> dict:
+        """Return bounded header diagnostics, without granting read or send."""
+        if type(activate_existing) is not bool:
+            raise ChannelError("invalid_arguments", "explicit activation flag required")
+        binding = self._load()
+        self._session(binding, session_id)
+        try:
+            report = self.backend_factory(binding.target, self.state_dir).diagnose_header(
+                activate_existing=activate_existing)
+        except Exception:
+            raise ChannelError("native_blocked", "native header diagnostic unavailable") from None
+        phases = {"binding", "layout", "session", "activate", "window", "capture", "ocr", "recheck", "complete"}
+        reasons = {"none", "precondition_unavailable", "title_mismatch", "automatic_title_gate_not_passed"}
+        fields = {"status", "observed_at", "window", "capture_healthy", "title_exact",
+                  "matching_title_confidences", "automatic_title_gate_passed", "identity_verified",
+                  "body_read", "activation_requested", "activated_existing", "phase", "reason"}
+        if (not isinstance(report, dict) or not fields <= report.keys()
+                or report["status"] not in ("header_observed", "blocked")
+                or not isinstance(report["phase"], str) or not isinstance(report["reason"], str)
+                or report["phase"] not in phases or report["reason"] not in reasons
+                or type(report["observed_at"]) not in (int, float)
+                or not math.isfinite(report["observed_at"]) or report["observed_at"] <= 0
+                or any(type(report[k]) is not bool for k in (
+                    "capture_healthy", "title_exact", "automatic_title_gate_passed", "activation_requested"))
+                or report["identity_verified"] is not False or report["body_read"] is not False
+                or report["activation_requested"] != activate_existing
+                or (report["activated_existing"] is not None
+                    and type(report["activated_existing"]) is not bool)
+                or not isinstance(report["matching_title_confidences"], list)
+                or any(type(c) not in (int, float) or not math.isfinite(c) or not 0 <= c <= 1
+                       for c in report["matching_title_confidences"])):
+            raise ChannelError("native_blocked", "native header diagnostic malformed")
+        window = report["window"]
+        if window is not None and (not isinstance(window, dict)
+                or set(window) != {"pid", "window_id", "bounds"}
+                or any(type(window[k]) is not int or window[k] <= 0 for k in ("pid", "window_id"))
+                or not isinstance(window["bounds"], (list, tuple)) or len(window["bounds"]) != 4
+                or any(type(v) is not int for v in window["bounds"])
+                or any(v <= 0 for v in window["bounds"][2:])):
+            raise ChannelError("native_blocked", "native header window malformed")
+        if report["status"] == "header_observed" and (
+                window is None or not report["capture_healthy"] or not report["title_exact"]
+                or not report["matching_title_confidences"] or report["phase"] != "complete"):
+            raise ChannelError("native_blocked", "native header diagnostic inconsistent")
+        # Whitelist fields so OCR text or unexpected backend details stay out.
+        return {**{k: report[k] for k in fields}, "channel_id": binding.channel_id,
+                "agent_session_id": binding.agent_session_id,
+                "account_binding_verified": False, "read_authorized": False,
+                "send_authorized": False}
 
     def read(self, *, session_id: str) -> dict:
         binding = self._load()

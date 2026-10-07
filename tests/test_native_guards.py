@@ -88,6 +88,10 @@ class FakePlatform:
         self.fail_type = False
         self.draft = ""
         self.header_text = TARGET.displayed_title
+        self.header_confidence = 0.99
+        self.header_duplicate = False
+        self.fail_header_capture = False
+        self.change_after_header_capture = False
         self.blank_body = False
         self.change_after_scroll = False
         self.sent_text = None
@@ -123,6 +127,10 @@ class FakePlatform:
     def capture(self, window, crop: Crop):
         tag = "header" if crop.y == 20 else "body" if crop.y == 60 else "input" if crop.y == 746 else "button"
         self.calls.append(("capture", tag))
+        if tag == "header" and self.fail_header_capture:
+            raise NativeBlocked("synthetic empty frame")
+        if tag == "header" and self.change_after_header_capture:
+            self.window_identity = WindowIdentity(WINDOW.pid, WINDOW.window_id + 1, WINDOW.bounds)
         image = (BlankImage(tag) if tag == "body" and self.blank_body
                  else RedWarningImage(tag) if tag == "body" and self.sent_text and self.red_after_send
                  else CaretImage(extra_mark=self.extra_input_mark)
@@ -133,7 +141,8 @@ class FakePlatform:
 
     def ocr(self, image):
         if image.tag == "header":
-            return [OCRLine(self.header_text, 0.99, (0.2, 0.2, 0.5, 0.5))]
+            found = OCRLine(self.header_text, self.header_confidence, (0.2, 0.2, 0.5, 0.5))
+            return [found, found] if self.header_duplicate else [found]
         if image.tag == "body":
             return [OCRLine("Synthetic request", 0.95, (0.2, 0.3, 0.4, 0.1))] + (
                 [OCRLine(self.sent_text, 0.99, (0.2, 0.2, 0.6, 0.1))] if self.sent_text else [])
@@ -211,6 +220,104 @@ class NativeGuardTests(unittest.TestCase):
         self.assertLess(self.platform.calls.index(("session_guard", "read")),
                         self.platform.calls.index(("activate_existing",)))
         self.assertEqual(result["activation"], "already_frontmost_or_not_requested")
+
+    def test_header_diagnostic_reports_exact_low_confidence_without_gate(self):
+        self.platform.header_confidence = 0.5
+        result = self.backend.diagnose_header()
+        self.assertEqual(set(result), {"status", "observed_at", "window", "capture_healthy",
+                                       "title_exact", "matching_title_confidences",
+                                       "automatic_title_gate_passed", "identity_verified", "body_read",
+                                       "activation_requested", "activated_existing", "phase", "reason"})
+        self.assertEqual(result["status"], "header_observed")
+        self.assertTrue(result["capture_healthy"])
+        self.assertTrue(result["title_exact"])
+        self.assertEqual(result["matching_title_confidences"], [0.5])
+        self.assertFalse(result["automatic_title_gate_passed"])
+        self.assertFalse(result["identity_verified"])
+        self.assertFalse(result["body_read"])
+        self.assertFalse(result["activation_requested"])
+        self.assertIsNone(result["activated_existing"])
+        self.assertEqual(result["phase"], "complete")
+        self.assertEqual(result["reason"], "automatic_title_gate_not_passed")
+        self.assertEqual([call for call in self.platform.calls if call[0] == "capture"], [("capture", "header")])
+        self.assertFalse(any(call[0] in ("click", "type", "scroll") for call in self.platform.calls))
+        self.platform.calls.clear()
+        with self.assertRaises(NativeBlocked):
+            self.backend.read()
+        self.assertNotIn(("capture", "body"), self.platform.calls)
+
+    def test_header_diagnostic_activation_is_explicit_and_never_reads_body(self):
+        self.platform.frontmost = False
+        blocked = self.backend.diagnose_header()
+        self.assertEqual(blocked["phase"], "window")
+        self.assertFalse(any(call[0] == "activate_existing" for call in self.platform.calls))
+        self.platform.calls.clear()
+        observed = self.backend.diagnose_header(activate_existing=True)
+        self.assertEqual(observed["status"], "header_observed")
+        self.assertTrue(observed["activation_requested"])
+        self.assertTrue(observed["activated_existing"])
+        self.assertTrue(observed["automatic_title_gate_passed"])
+        self.assertEqual([call for call in self.platform.calls if call[0] == "capture"], [("capture", "header")])
+
+    def test_header_diagnostic_wrong_title_is_blocked_without_disclosure(self):
+        self.platform.header_text = "Other synthetic group (3)"
+        result = self.backend.diagnose_header()
+        self.assertEqual(result["status"], "blocked")
+        self.assertTrue(result["capture_healthy"])
+        self.assertFalse(result["title_exact"])
+        self.assertEqual(result["matching_title_confidences"], [])
+        self.assertFalse(result["automatic_title_gate_passed"])
+        self.assertEqual(result["phase"], "ocr")
+        self.assertEqual(result["reason"], "title_mismatch")
+        self.assertNotIn(self.platform.header_text, json.dumps(result))
+        self.assertNotIn(("capture", "body"), self.platform.calls)
+
+    def test_header_diagnostic_duplicate_exact_title_is_not_unique(self):
+        self.platform.header_duplicate = True
+        result = self.backend.diagnose_header()
+        self.assertEqual(result["status"], "blocked")
+        self.assertFalse(result["title_exact"])
+        self.assertEqual(result["matching_title_confidences"], [0.99, 0.99])
+        self.assertFalse(result["automatic_title_gate_passed"])
+        self.assertEqual(result["reason"], "title_mismatch")
+        self.assertNotIn(("capture", "body"), self.platform.calls)
+        self.platform.calls.clear()
+        original_ocr = self.platform.ocr
+        self.platform.ocr = lambda image: ([OCRLine(TARGET.displayed_title, 0.95, (0.2, 0.2, 0.5, 0.5)),
+                                            OCRLine(TARGET.displayed_title, 0.5, (0.2, 0.2, 0.5, 0.5))]
+                                           if image.tag == "header" else original_ocr(image))
+        mixed = self.backend.diagnose_header()
+        self.assertEqual(mixed["status"], "blocked")
+        self.assertFalse(mixed["automatic_title_gate_passed"])
+
+    def test_header_diagnostic_rejects_non_boolean_activation_before_platform(self):
+        for value in (1, "false", None):
+            with self.subTest(value=value), self.assertRaises(NativeBlocked):
+                self.backend.diagnose_header(activate_existing=value)
+        self.assertEqual(self.platform.calls, [])
+
+    def test_header_diagnostic_capture_failure_or_window_change_never_claims_title(self):
+        for changed in ("fail_header_capture", "change_after_header_capture"):
+            with self.subTest(changed=changed):
+                platform = FakePlatform()
+                setattr(platform, changed, True)
+                backend = NativeChannelBackend(TARGET, self.state, platform=platform)
+                result = backend.diagnose_header()
+                self.assertEqual(result["status"], "blocked")
+                self.assertFalse(result["title_exact"])
+                self.assertFalse(result["automatic_title_gate_passed"])
+                self.assertEqual(result["matching_title_confidences"], [])
+                self.assertEqual(result["phase"], "capture" if changed == "fail_header_capture" else "recheck")
+                self.assertNotIn(("capture", "body"), platform.calls)
+                self.assertFalse(any(call[0] in ("click", "type", "scroll") for call in platform.calls))
+
+    def test_header_diagnostic_missing_layout_blocks_before_capture(self):
+        (self.state / "layout.json").unlink()
+        result = self.backend.diagnose_header()
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["phase"], "layout")
+        self.assertFalse(result["title_exact"])
+        self.assertFalse(any(call[0] == "capture" for call in self.platform.calls))
 
     def test_page_scrolls_only_body_after_title_check(self):
         result = self.backend.page(-2)

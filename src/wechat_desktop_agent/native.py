@@ -118,8 +118,13 @@ def _image_healthy(image: Any) -> None:
 
 
 def _exact_title(lines: list[OCRLine], title: str) -> bool:
+    return sum(confidence >= 0.70 for confidence in _title_match_confidences(lines, title)) == 1
+
+
+def _title_match_confidences(lines: list[OCRLine], title: str) -> list[float]:
     normalized = lambda value: re.sub(r"\s+", "", value).replace("（", "(").replace("）", ")")
-    return sum(normalized(line.text) == normalized(title) and line.confidence >= 0.70 for line in lines) == 1
+    expected = normalized(title)
+    return [line.confidence for line in lines if normalized(line.text) == expected]
 
 
 def _exact_draft(lines: list[OCRLine], text: str) -> bool:
@@ -325,6 +330,70 @@ class NativeChannelBackend:
             result["activation"] = "existing_app_activated" if activated else "already_frontmost_or_not_requested"
             self._binding(sending=False)
             return result
+
+    def diagnose_header(self, *, activate_existing: bool = False) -> dict[str, Any]:
+        """Observe only the configured header; this never authorizes read/send."""
+        if type(activate_existing) is not bool:
+            raise NativeBlocked("activation flag must be boolean")
+        result: dict[str, Any] = {
+            "status": "blocked", "observed_at": time.time(), "window": None,
+            "capture_healthy": False, "title_exact": False, "matching_title_confidences": [],
+            "automatic_title_gate_passed": False, "identity_verified": False,
+            "body_read": False, "activation_requested": activate_existing,
+            "activated_existing": None, "phase": "binding", "reason": "precondition_unavailable",
+        }
+        stage = "binding"
+        try:
+            with self._desktop_lock():
+                self._binding(sending=False)
+                stage = "session"
+                self.platform.session_guard("read")
+                if activate_existing:
+                    stage = "activate"
+                    result["activated_existing"] = bool(self.platform.activate_existing())
+                stage = "layout"
+                layout = self._layout()
+                stage = "window"
+                window = self.platform.window(layout)
+                result["window"] = {"pid": window.pid, "window_id": window.window_id,
+                                    "bounds": list(window.bounds)}
+                stage = "recheck"
+                self._same(layout, window)
+                stage = "capture"
+                image = self.platform.capture(window, layout.header)
+                _image_healthy(image)
+                result["capture_healthy"] = True
+                stage = "recheck"
+                self._same(layout, window)
+                stage = "ocr"
+                lines = self.platform.ocr(image)
+                if not isinstance(lines, list) or any(not isinstance(line, OCRLine) for line in lines):
+                    raise NativeBlocked("OCR unavailable")
+                stage = "recheck"
+                self._same(layout, window)
+                self._binding(sending=False)
+                self.platform.session_guard("read")
+                confidences = _title_match_confidences(lines, self.target.displayed_title)
+                result["matching_title_confidences"] = confidences
+                result["title_exact"] = len(confidences) == 1
+                result["automatic_title_gate_passed"] = (
+                    result["title_exact"] and _exact_title(lines, self.target.displayed_title))
+                if len(confidences) != 1:
+                    result["phase"] = "ocr"
+                    result["reason"] = "title_mismatch"
+                    result["observed_at"] = time.time()
+                    return result
+                result["status"] = "header_observed"
+                result["phase"] = "complete"
+                result["reason"] = ("none" if result["automatic_title_gate_passed"]
+                                    else "automatic_title_gate_not_passed")
+        except Exception:
+            # Desktop errors may contain app or OCR details. Never include the
+            # exception or recognized text in this diagnostic response.
+            result["phase"] = stage
+            result["reason"] = "precondition_unavailable"
+        result["observed_at"] = time.time()
+        return result
 
     def page(self, scroll_delta: int, *, activate_existing: bool = False) -> dict[str, Any]:
         """Inspect one adjacent viewport of this same focused conversation only."""

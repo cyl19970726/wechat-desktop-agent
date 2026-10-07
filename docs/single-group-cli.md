@@ -23,6 +23,22 @@ PYTHONPATH=src python3.11 -m wechat_desktop_agent.cli \
 
 `init` 只允许一个群绑定，生成稳定的本地 `channel_id`，并以暂停状态开始。`account_binding_id` 是本地配置标签，不能证明微信实际登录账号；`session-id` 必须与初始化时提供的一致。配置位于权限受限的 `.local` 状态目录，不应提交到仓库。`read` 不解除暂停，也**默认不激活微信**；CLI 未暴露原生驱动的显式激活选项，微信须已在前台。`page` 只接受 `-3,-2,-1,1,2,3`，在当前已核验聊天正文区域滚动一次，同样默认不激活应用。两者的结果只有 `coverage:"viewport_only"`、原始 OCR `lines`、观察时间、窗口身份和视口哈希；行的方向为 `unknown`。它们不返回已确认消息、历史游标、订阅或完整上下文，也不把文字哈希视为消息 ID。输出可能包含聊天文字，只交给授权的本地调用者，不贴入公开日志。
 
+## 仅标题区诊断
+
+```sh
+PYTHONPATH=src python3.11 -m wechat_desktop_agent.cli \
+  --state-dir .local/wechat-desktop-agent doctor \
+  --session-id 'synthetic-agent-session'
+```
+
+同样需要已标定的私有 `layout.json` 和可用的 Mac 依赖。默认不激活微信；显式加 `--activate-existing` 才将唯一已运行的微信进程置前，不启动应用或选择群。该选项仅供 `doctor`，不改变 `read/page/send` 的行为；主副屏仍共享前台焦点。
+
+`doctor` 在桌面锁内仅捕获配置标题区，输出 `phase`、窗口元数据、`capture_healthy`、`title_exact`、实际 `matching_title_confidences` 与 `automatic_title_gate_passed`；不返回识别文字，不读正文、剪贴板或草稿，不滚动、输入或发送。标题唯一精确匹配但置信度不足现有门槛时，返回 `header_observed`，同时保留门槛未通过的事实；这不是降低 `read/send` 门槛。标题不符、空帧或窗口变化等拒绝返回 `status:blocked`、`ok:false` 和退出码 2。OCR confidence 是模型给出的分数，当前阈值未做统计校准，不能解释成正确概率。
+
+所有诊断都明确 `identity_verified:false`、`account_binding_verified:false`、`body_read:false`、`read_authorized:false` 和 `send_authorized:false`，不会更改暂停状态或推进上下文。成功诊断只说明这次限定标题观察可得，不证明跨页采集或送达。
+
+## 复制文本解析
+
 `parse-copy` 是单独的**离线文本入口**：调用者先自行核对准确群、可见选中条数及剪贴板确实变化，再把这批文本送入标准输入。下面仅用合成记录演示格式；CLI 不会读取系统剪贴板或操作微信。
 
 ```sh
