@@ -277,10 +277,11 @@ class Outbox:
         return Session(account_id, owner_id, epoch)
 
     def prepare(self, session: Session, *, intent_id: str, source_message_id: str,
-                identity_kind: str, target: FullTarget, marker: str, text: str) -> str:
+                identity_kind: str, target: FullTarget, marker: str, text: str,
+                tag_existing: bool = False) -> str:
         if (not _key(intent_id) or not _key(source_message_id) or not _key(marker)
-                or identity_kind not in ("explicit_stable", "synthetic_fixture")
-                or not text.startswith(marker + " ")):
+                or identity_kind not in ("explicit_stable", "synthetic_fixture", "agent_request")
+                or not isinstance(text, str) or not text.startswith(marker + " ")):
             raise Refused("explicit stable message and intent identity required")
         target_json, digest, now = _target(target), _hash(text), self._now()
         if target.account_id != session.account_id:
@@ -295,7 +296,7 @@ class Outbox:
                 if (existing["intent_id"] == intent_id and existing["source_message_id"] == source_message_id
                         and existing["target_json"] == target_json and existing["payload_sha256"] == digest
                         and existing["marker"] == marker and existing["identity_kind"] == identity_kind):
-                    return existing["state"]
+                    return "existing:" + existing["state"] if tag_existing else existing["state"]
                 raise Refused("message or intent identity reused with different content")
             db.execute("INSERT INTO intents(account_id,intent_id,source_message_id,identity_kind,"
                        "target_json,payload_sha256,marker,state,prepared_at) "
@@ -420,3 +421,8 @@ class Outbox:
         if row is None:
             raise Refused("intent unavailable")
         return row["state"]
+
+    def account_mode(self, account_id: str) -> str:
+        with self._connect() as db:
+            row = db.execute("SELECT mode FROM accounts WHERE account_id=?", (account_id,)).fetchone()
+        return row["mode"] if row is not None else "human"

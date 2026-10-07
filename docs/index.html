@@ -12,11 +12,18 @@
 </head>
 <body><main>
   <div class="eyebrow">MAC · 本地优先 · 可人工接管</div>
-  <h1>让微信助手的每一步都可解释</h1>
-  <p class="intro">目标是让你和独立助手账号在同一个群里，看得到回复，也随时能接手。本仓库先把读取、理解、执行和送达核验拆清楚，再逐步建设可运行的助手。</p>
-  <p class="muted">2026-10-07 设计基线：用户已另报告一次成功发送；稳定监听、完整三轮收发验收及客户群运行仍待验证。</p>
+  <h1>把一个微信群接成 Agent 的会话渠道</h1>
+  <p class="intro">先稳定支持一个测试群：读取需求，交给现有 Agent 追问和确认，再把回复发回同一个群。CLI 负责渠道、会话绑定和操作记录。</p>
+  <p class="muted">2026-10-08：正在验收持续窗口捕获。重启前 Computer Use 白帧，限定原生标题捕获透明；受控重启已完成，重登与恢复仍待核验。本轮未发送消息。标题区诊断已接入 CLI，72 项离线回归通过；精确选取、跨页上下文和稳定回复仍未通过。</p>
 
-  <section class="grid" aria-label="两幅架构图">
+  <section class="panel">
+    <span class="tag">本期范围 · 单群 · CLI</span><h2>读取、上下文与回复</h2>
+    <p>每一屏先形成候选观察；只有分页锚点唯一、覆盖范围明确，才能追加确认日志。现有 Agent 消费本地事件和游标，再提交回复请求。遇到断档、歧义或发送结果未知时保留记录，交给人处理。</p>
+    <a class="button" href="../.archify/architecture-single-group-channel-20261007-152801/single-group-channel.html">打开单群渠道设计图</a>
+    <p class="muted">这幅图描述目标机制，不代表所有环节已经连通。多群订阅、MCP 和客户试点留待单群验收后。</p>
+  </section>
+
+  <section class="grid" aria-label="此前设计参考">
     <article class="card">
       <span class="tag">现有试验路径</span><h2>现在怎样操作微信</h2>
       <p>窗口与会话核对 → 区域截图 → 本机 OCR → 对话模型理解 → 受控输入与点击 → 本机画面和收件端核验。</p>
@@ -24,7 +31,7 @@
       <a class="button" href="../.archify/architecture-current-mechanism-20261007-144533/current-mechanism.html">打开现有机制图</a>
     </article>
     <article class="card">
-      <span class="tag">推荐目标架构 · 部分模块待实现</span><h2>最终怎样可靠协作</h2>
+      <span class="tag">此前较宽的概念设计</span><h2>整体助手如何组成</h2>
       <p>本机适配器持续观察指定会话，模型只给候选回复；确定性执行器检查目标与草稿，SQLite 记录尝试，人工控制台处理接管与未知结果。</p>
       <p class="muted">模型提供方可替换；约课等业务由平台后端验证并执行。</p>
       <a class="button" href="../.archify/architecture-target-system-20261007-144533/target-system.html">打开目标架构图</a>
@@ -33,16 +40,16 @@
 
   <section class="panel">
     <h2>推荐的技术组合</h2>
-    <div class="flow"><span>Python / PyObjC</span><b class="arrow">→</b><span>AX / ScreenCaptureKit</span><b class="arrow">→</b><span>本机 Apple Vision OCR</span><b class="arrow">→</b><span>可替换模型接口</span><b class="arrow">→</b><span>串行 UI 执行器 + SQLite</span></div>
-    <p>辅助功能能读到文字时优先使用；缺失时读取限定聊天区域的像素。视觉观察不提供官方消息 ID，点击和自己的气泡也不等于对方收到。发送结果未知时保留状态，不自动重发。</p>
-    <p class="muted">已实现的是离线发送状态库和合成模拟器。真实桌面驱动、持续监听、模型调用与操作员界面尚未接入。离线库核验调用方提供的观察，不能替代现场窗口与账号检查。</p>
+    <div class="flow"><span>原文复制 / 局部 OCR</span><b class="arrow">→</b><span>分页与确认日志</span><b class="arrow">→</b><span>CLI / 现有 Agent</span><b class="arrow">→</b><span>一次发送与结果记录</span></div>
+    <p>优先取得微信复制的原文，视觉核对群、方向与选取范围；缺失时才使用限定聊天区域的 OCR。视觉观察不提供官方消息 ID，点击和自己的气泡也不等于对方收到。发送结果未知时保留状态，不自动重发。</p>
+    <p class="muted">原生 read/page 当前只返回单屏 OCR 行，方向未知；会话日志模块接收已核验气泡，尚未连到自动采集与 CLI；parse-copy 仅解析调用者提供的文字，明确不核实来源或历史完整性。Computer Use 试跑与仓库原生驱动是两条独立证据，不能互相替代。副屏与主屏仍共享键鼠和前台焦点。</p>
   </section>
 
   <section class="steps" aria-label="下一步验收顺序">
-    <article class="card"><span class="number">01</span><h3>固定环境与只读适配</h3><p>绑定唯一账号、窗口和测试会话；验证 AX / OCR、空帧停止、锁屏和窗口变化后的拒绝动作。</p></article>
-    <article class="card"><span class="number">02</span><h3>完成三轮真实收发</h3><p>新请求、新编号、输入回读、一次点击和独立收件端确认；同时演练失败、未知结果与人工接管。</p></article>
-    <article class="card"><span class="number">03</span><h3>接入模型与操作员界面</h3><p>先明确上下文传输范围，再接模型；显示候选、暂停、接手与发送证据，通过后进入小范围客户试点。</p></article>
+    <article class="card"><span class="number">01</span><h3>恢复持续观察</h3><p>核同一测试窗口在静止、聚焦和滚动后的有效画面。一次恢复不足以通过；当前只做标题诊断和受控重启。</p></article>
+    <article class="card"><span class="number">02</span><h3>读取并恢复上下文</h3><p>自动框选复制原文，用至少三屏核条数、顺序、重复和长消息；确认重叠后追加本地记录，断档就停。</p></article>
+    <article class="card"><span class="number">03</span><h3>验证单次回复</h3><p>核完整草稿与目标后只提交一次，回读失败标记并由另一身份确认收件。结果未知时不自动重发。</p></article>
   </section>
-  <nav class="links" aria-label="文档入口"><a href="architecture.md">详细架构</a><a href="plan.md">分阶段验收</a><a href="status.md">实际证据与状态</a><a href="diagrams.md">图源与重建方式</a><a href="diagram-verification.json">脱敏校验记录</a><a href="../README.md">仓库说明</a><a href="../SECURITY.md">数据边界</a></nav>
-  <footer>两幅图由 Archify 3.0.1 生成，四项检查均通过，生成截图已人工查看。公开记录只保留相对路径、摘要和校验值；持续集成检查源与产物的一致性，不重复浏览器验收。</footer>
+  <nav class="links" aria-label="文档入口"><a href="single-group-cli.md">单群 CLI 与限制</a><a href="architecture.md">详细架构</a><a href="plan.md">分阶段验收</a><a href="status.md">实际证据与状态</a><a href="diagrams.md">图源与重建方式</a><a href="diagram-verification.json">脱敏校验记录</a><a href="../README.md">仓库说明</a><a href="../SECURITY.md">数据边界</a></nav>
+  <footer>三幅设计图由 Archify 3.0.1 生成，四项检查均通过，指定生成截图已人工查看。公开记录只保留相对路径、摘要和校验值；持续集成检查源与产物的一致性，不重复浏览器或真实微信验收。</footer>
 </main></body></html>

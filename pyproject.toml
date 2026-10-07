@@ -5,10 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wechat-desktop-agent"
 version = "0.1.0"
-description = "Offline delivery-state library for supervised desktop automation experiments"
+description = "Experimental single-group desktop channel and conservative conversation journal"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = []
+
+[project.scripts]
+wechat-desktop-agent = "wechat_desktop_agent.cli:main"
+
+[project.optional-dependencies]
+mac = [
+  "pyobjc-core==12.2.2; sys_platform == 'darwin'",
+  "pyobjc-framework-Cocoa==12.2.2; sys_platform == 'darwin'",
+  "pyobjc-framework-ApplicationServices==12.2.2; sys_platform == 'darwin'",
+  "pyobjc-framework-Quartz==12.2.2; sys_platform == 'darwin'",
+  "pyobjc-framework-ScreenCaptureKit==12.2.2; sys_platform == 'darwin'",
+  "pyobjc-framework-Vision==12.2.2; sys_platform == 'darwin'",
+  "Pillow==12.3.0; sys_platform == 'darwin'",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

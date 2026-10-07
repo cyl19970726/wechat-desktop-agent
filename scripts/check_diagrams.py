@@ -27,8 +27,10 @@ def checked_path(relative: str) -> Path:
 
 def main() -> None:
     manifest = json.loads((ROOT / "docs/diagram-verification.json").read_text())
-    if manifest["schema_version"] != 1 or len(manifest["diagrams"]) != 2:
-        raise ValueError("expected the two verified architecture diagrams")
+    expected = {"current-mechanism", "target-system", "single-group-channel"}
+    if (manifest["schema_version"] != 1 or len(manifest["diagrams"]) != len(expected)
+            or {item["id"] for item in manifest["diagrams"]} != expected):
+        raise ValueError("expected the three verified architecture diagrams")
     repair = manifest["generator"]["project_format_repair"]
     if hashlib.sha256(checked_path(repair["script"]).read_bytes()).hexdigest() != repair["script_sha256"]:
         raise ValueError("generator format repair script changed; review and regenerate the diagrams")
