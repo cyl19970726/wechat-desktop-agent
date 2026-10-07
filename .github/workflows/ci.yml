@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  offline-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Offline unit tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: Diagram source and output consistency
+        run: python scripts/check_diagrams.py
+      - name: Public tracked-content check
+        run: python scripts/publish_check.py --tracked

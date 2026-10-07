@@ -1,0 +1,298 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "已实测的微信操作原理",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": ".archify/architecture-current-mechanism-20261007-144533/current-mechanism.html"
+  },
+  "components": [
+    {
+      "id": "participants",
+      "type": "external",
+      "label": "同群测试参与者",
+      "sublabel": "用户可看到机器人回复",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "合成消息"
+    },
+    {
+      "id": "chat_view",
+      "type": "frontend",
+      "label": "微信聊天界面",
+      "sublabel": "现有账号与指定聊天",
+      "pos": [
+        370,
+        70
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "原生客户端"
+    },
+    {
+      "id": "bounded_capture",
+      "type": "backend",
+      "label": "窗口绑定与区域截图",
+      "sublabel": "PyObjC · AX · 系统截图",
+      "pos": [
+        700,
+        70
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "空帧拒绝"
+    },
+    {
+      "id": "local_ocr",
+      "type": "backend",
+      "label": "本机文字识别",
+      "sublabel": "Apple Vision OCR",
+      "pos": [
+        1030,
+        70
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "生成可读文本"
+    },
+    {
+      "id": "conversation_model",
+      "type": "cloud",
+      "label": "当前对话模型",
+      "sublabel": "理解消息并拟定回复",
+      "pos": [
+        1030,
+        350
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "人工触发测试"
+    },
+    {
+      "id": "send_guard",
+      "type": "security",
+      "label": "发送前校验",
+      "sublabel": "群名 · 草稿 · 窗口身份",
+      "pos": [
+        700,
+        350
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "变化即停止"
+    },
+    {
+      "id": "native_input",
+      "type": "backend",
+      "label": "原生输入与点击",
+      "sublabel": "Quartz 键盘／鼠标事件",
+      "pos": [
+        370,
+        350
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "一次提交"
+    },
+    {
+      "id": "wechat_submit",
+      "type": "frontend",
+      "label": "微信发送界面",
+      "sublabel": "草稿提交与发送状态",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "点击 ≠ 送达"
+    },
+    {
+      "id": "receipt_readback",
+      "type": "backend",
+      "label": "发送后回读",
+      "sublabel": "气泡 · 红叹号 · 结果未知",
+      "pos": [
+        40,
+        630
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "分别记录"
+    },
+    {
+      "id": "test_recipient",
+      "type": "external",
+      "label": "另一测试端",
+      "sublabel": "独立确认实际收件",
+      "pos": [
+        370,
+        630
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "送达证据"
+    },
+    {
+      "id": "pilot_journal",
+      "type": "database",
+      "label": "本地尝试账本",
+      "sublabel": "文件状态与防重记录",
+      "pos": [
+        700,
+        630
+      ],
+      "size": [
+        215,
+        86
+      ],
+      "tag": "未知不重发"
+    }
+  ],
+  "connections": [
+    {
+      "id": "incoming_display",
+      "from": "participants",
+      "to": "chat_view",
+      "label": "群内消息",
+      "variant": "emphasis"
+    },
+    {
+      "id": "window_pixels",
+      "from": "chat_view",
+      "to": "bounded_capture",
+      "label": "限定区域",
+      "variant": "default"
+    },
+    {
+      "id": "recognize_text",
+      "from": "bounded_capture",
+      "to": "local_ocr",
+      "label": "截取像素",
+      "variant": "default"
+    },
+    {
+      "id": "understand",
+      "from": "local_ocr",
+      "to": "conversation_model",
+      "label": "识别后文本",
+      "variant": "default"
+    },
+    {
+      "id": "draft_reply",
+      "from": "conversation_model",
+      "to": "send_guard",
+      "label": "候选回复",
+      "variant": "default"
+    },
+    {
+      "id": "authorize_ui",
+      "from": "send_guard",
+      "to": "native_input",
+      "label": "核验通过",
+      "variant": "security"
+    },
+    {
+      "id": "submit_once",
+      "from": "native_input",
+      "to": "wechat_submit",
+      "label": "输入并点击",
+      "variant": "emphasis"
+    },
+    {
+      "id": "check_state",
+      "from": "wechat_submit",
+      "to": "receipt_readback",
+      "label": "回读状态",
+      "variant": "default"
+    },
+    {
+      "id": "independent_receipt",
+      "from": "receipt_readback",
+      "to": "test_recipient",
+      "label": "对端核收",
+      "variant": "default"
+    },
+    {
+      "id": "record_attempt",
+      "from": "send_guard",
+      "to": "pilot_journal",
+      "label": "先记录尝试",
+      "variant": "default"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "本机读取与 OCR",
+      "wraps": [
+        "chat_view",
+        "bounded_capture",
+        "local_ocr"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "本机校验与 UI 提交",
+      "wraps": [
+        "send_guard",
+        "native_input",
+        "wechat_submit"
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "已观察到的能力",
+      "items": [
+        "精确群名及合成消息曾被本机 OCR 识别",
+        "输入文字与发送按钮已有实际操作证据",
+        "10 月 7 日用户报告已有成功发送；未提供具体编号"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "证据边界",
+      "items": [
+        "这是能力原理概览，尚非持续运行的机器人",
+        "截图空帧及聊天控件不可用曾导致中止",
+        "历史失败与结果未知保留，不由后续成功覆盖"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "数据与送达",
+      "items": [
+        "没有直接读取微信数据库或消息 API",
+        "视觉观察没有官方稳定消息 ID",
+        "己方气泡出现不能单独证明对端收件"
+      ]
+    }
+  ]
+}

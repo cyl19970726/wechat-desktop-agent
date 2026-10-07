@@ -1,0 +1,384 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "目标架构：可控的同群微信助手",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": ".archify/architecture-target-system-20261007-144533/target-system.html"
+  },
+  "components": [
+    {
+      "id": "group_users",
+      "type": "external",
+      "label": "同群用户与机器人",
+      "sublabel": "机器人独立身份",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "授权聊天范围"
+    },
+    {
+      "id": "mac_reader",
+      "type": "backend",
+      "label": "Mac 微信适配器",
+      "sublabel": "窗口绑定 · AX／区域截图",
+      "pos": [
+        340,
+        70
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "失效即暂停"
+    },
+    {
+      "id": "observation_layer",
+      "type": "backend",
+      "label": "观察与消息归一化",
+      "sublabel": "本机 OCR · 方向与上下文",
+      "pos": [
+        640,
+        70
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "弱身份标记"
+    },
+    {
+      "id": "session_orchestrator",
+      "type": "backend",
+      "label": "本地会话编排",
+      "sublabel": "触发规则 · 上下文 · 去重",
+      "pos": [
+        940,
+        70
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "单账号串行"
+    },
+    {
+      "id": "model_boundary",
+      "type": "security",
+      "label": "模型接口与外发策略",
+      "sublabel": "限定上下文 · 脱敏",
+      "pos": [
+        940,
+        350
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "模型仅提建议"
+    },
+    {
+      "id": "policy_gate",
+      "type": "security",
+      "label": "确定性策略与业务工具",
+      "sublabel": "角色权限 · 后端结果",
+      "pos": [
+        640,
+        350
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "执行前复验"
+    },
+    {
+      "id": "desktop_executor",
+      "type": "backend",
+      "label": "单一桌面执行器",
+      "sublabel": "账户租约 · 焦点与草稿",
+      "pos": [
+        340,
+        350
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "attempt 先持久化"
+    },
+    {
+      "id": "submit_verify",
+      "type": "backend",
+      "label": "微信提交与回读",
+      "sublabel": "正常 UI · 失败／未知识别",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "未知不自动重试"
+    },
+    {
+      "id": "operator_console",
+      "type": "frontend",
+      "label": "本地操作台与人工接管",
+      "sublabel": "暂停 · 审阅 · 恢复复验",
+      "pos": [
+        40,
+        630
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "旧授权失效"
+    },
+    {
+      "id": "durable_outbox",
+      "type": "database",
+      "label": "SQLite 状态与 Outbox",
+      "sublabel": "意图幂等 · 历史与租约",
+      "pos": [
+        340,
+        630
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "持久化核心已实现"
+    },
+    {
+      "id": "business_backend",
+      "type": "backend",
+      "label": "约课平台权威后端",
+      "sublabel": "权限 · 并发 · 时区 · 账本",
+      "pos": [
+        640,
+        630
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "接口接入待实施"
+    },
+    {
+      "id": "model_provider",
+      "type": "cloud",
+      "label": "可选模型提供方",
+      "sublabel": "本地或云端 · 接入待选",
+      "pos": [
+        940,
+        630
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "范围内必要文本"
+    },
+    {
+      "id": "recipient_receipt",
+      "type": "external",
+      "label": "可信收件证据",
+      "sublabel": "对端确认或通道可信回执",
+      "pos": [
+        40,
+        910
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "才能标记送达"
+    }
+  ],
+  "connections": [
+    {
+      "id": "capture_authorized_group",
+      "from": "group_users",
+      "to": "mac_reader",
+      "label": "群内消息",
+      "variant": "emphasis"
+    },
+    {
+      "id": "normalize_capture",
+      "from": "mac_reader",
+      "to": "observation_layer",
+      "label": "可读画面",
+      "variant": "default"
+    },
+    {
+      "id": "observe_context",
+      "from": "observation_layer",
+      "to": "session_orchestrator",
+      "label": "观察事件",
+      "variant": "default"
+    },
+    {
+      "id": "assemble_context",
+      "from": "session_orchestrator",
+      "to": "model_boundary",
+      "label": "规则内上下文",
+      "variant": "default"
+    },
+    {
+      "id": "suggest_actions",
+      "from": "model_boundary",
+      "to": "policy_gate",
+      "label": "候选回复意图",
+      "variant": "default"
+    },
+    {
+      "id": "gated_execution",
+      "from": "policy_gate",
+      "to": "desktop_executor",
+      "label": "核验通过",
+      "variant": "security"
+    },
+    {
+      "id": "perform_ui",
+      "from": "desktop_executor",
+      "to": "submit_verify",
+      "label": "一次 UI 提交",
+      "variant": "emphasis"
+    },
+    {
+      "id": "inspect_outcome",
+      "from": "submit_verify",
+      "to": "operator_console",
+      "label": "状态与待决项",
+      "variant": "default"
+    },
+    {
+      "id": "persist_dispatch",
+      "from": "desktop_executor",
+      "to": "durable_outbox",
+      "label": "先落尝试状态",
+      "variant": "default"
+    },
+    {
+      "id": "authorized_business",
+      "from": "policy_gate",
+      "to": "business_backend",
+      "label": "鉴权业务请求",
+      "variant": "security"
+    },
+    {
+      "id": "model_request",
+      "from": "model_boundary",
+      "to": "model_provider",
+      "label": "脱敏请求",
+      "variant": "dashed"
+    },
+    {
+      "id": "model_response",
+      "from": "model_provider",
+      "to": "model_boundary",
+      "label": "候选建议",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "right"
+    },
+    {
+      "id": "receipt_confirmation",
+      "from": "recipient_receipt",
+      "to": "operator_console",
+      "label": "独立收件确认",
+      "variant": "default"
+    },
+    {
+      "id": "human_takeover",
+      "from": "operator_console",
+      "to": "desktop_executor",
+      "label": "人工接管",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          290,
+          673
+        ],
+        [
+          290,
+          393
+        ]
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "本机观察层（待实现）",
+      "wraps": [
+        "mac_reader",
+        "observation_layer"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "本地编排与外发控制",
+      "wraps": [
+        "session_orchestrator",
+        "model_boundary"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "本机执行与持久状态",
+      "wraps": [
+        "desktop_executor",
+        "durable_outbox"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "本机回读与人工接管",
+      "wraps": [
+        "submit_verify",
+        "operator_console"
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "职责分离",
+      "items": [
+        "原生适配器读写界面；模型不持有任意桌面操作权",
+        "业务写入仅由平台后端鉴权并执行",
+        "账户租约与操作员接管串行管理 UI"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "可靠性边界",
+      "items": [
+        "意图防重复提交；纯视觉不能保证端到端 exactly-once",
+        "提交、明确失败、结果未知和送达分别记录",
+        "窗口或账号变化后旧证据与坐标作废"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "当前建设范围",
+      "items": [
+        "仓库首先提供可运行的离线发送状态核心",
+        "原生适配器、持续监听、模型与操作台仍待实施",
+        "官方通道留作独立适配器，客户群适用性须另核"
+      ]
+    }
+  ]
+}

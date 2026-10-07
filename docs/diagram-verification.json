@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-10-07",
+  "generator": {
+    "name": "Archify",
+    "version": "3.0.1",
+    "project_format_repair": {
+      "upstream_version": "3.0.1",
+      "repair": "clear spaces/tabs on empty output lines before staging and hashing HTML",
+      "file": "renderers/shared/cli.mjs",
+      "original_sha256": "097f968a614008b07972f56de995e5b933c61ee0ba0d16d967c0a97c6d92e9d7",
+      "repaired_sha256": "c7dba4808205404d74cf98088897938d0732b5a2e7fd83c3a33e8ee6818d5746",
+      "script": "scripts/prepare_archify.py",
+      "script_sha256": "5b04570b0c0112fed7a70bad5f8af4be9f761311a48ac44f9e31cf641ccfc369"
+    }
+  },
+  "scope": "Sanitized local verification record, not a signed attestation. CI only verifies unchanged candidate/artifact bytes; it does not repeat browser or visual review.",
+  "diagrams": [
+    {
+      "type": "architecture",
+      "quality": "showcase",
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      },
+      "id": "current-mechanism",
+      "specification": {
+        "path": ".archify/architecture-current-mechanism-20261007-144533/candidate.json",
+        "sha256": "fc6af5a6ba67085643f904e6d6c477e78a9170faa48d5401278412e9e6fce429",
+        "bytes": 6269
+      },
+      "artifact": {
+        "path": ".archify/architecture-current-mechanism-20261007-144533/current-mechanism.html",
+        "sha256": "936f6951998af142f76c85818dcffa6a4063aad450bbdb8201ff173f54d25616",
+        "bytes": 769085
+      },
+      "diagnostic_count": 0,
+      "visual_review": {
+        "status": "generated_capture_manually_viewed",
+        "theme": "light",
+        "viewport": [
+          2048,
+          1320
+        ],
+        "scope": "Generated diagram only. Raw captures and machine-specific receipts are local and ignored."
+      }
+    },
+    {
+      "type": "architecture",
+      "quality": "showcase",
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      },
+      "id": "target-system",
+      "specification": {
+        "path": ".archify/architecture-target-system-20261007-144533/candidate.json",
+        "sha256": "84d7c5f0f37826b351f25233a831c15ce99394af7550a6e6abbcc79ed80a4974",
+        "bytes": 8343
+      },
+      "artifact": {
+        "path": ".archify/architecture-target-system-20261007-144533/target-system.html",
+        "sha256": "db3743d62098c9ead1cdd9fa2dd10cf233bbf1ab35b58568fcb3c907f3398ad1",
+        "bytes": 778372
+      },
+      "diagnostic_count": 0,
+      "visual_review": {
+        "status": "generated_capture_manually_viewed",
+        "theme": "dark",
+        "viewport": [
+          2048,
+          1320
+        ],
+        "scope": "Generated diagram only. Raw captures and machine-specific receipts are local and ignored."
+      }
+    }
+  ]
+}

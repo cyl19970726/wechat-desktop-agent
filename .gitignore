@@ -1,0 +1,51 @@
+# Local evidence and runtime state
+.local/
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-*
+*.sqlite3-*
+*.db-*
+*.db.*.lock
+*.sqlite.*.lock
+*.sqlite3.*.lock
+logs/
+screenshots/
+recordings/
+
+# Credentials and machine-specific configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.p8
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# macOS and editor noise
+.DS_Store
+.idea/
+.vscode/
+
+# Visual evidence is private. Keep diagram candidates and checked HTML, but not
+# local browser/finalize receipts or screenshot captures with machine paths.
+evidence/
+.archify/**/*.json
+!.archify/**/candidate.json
+.archify/**/visual-check*/
