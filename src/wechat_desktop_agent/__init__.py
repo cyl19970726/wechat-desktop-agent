@@ -1,4 +1,4 @@
-"""Offline, supervised desktop delivery state. No WeChat integration."""
+"""Experimental local, supervised desktop delivery state. Native desktop and copied-text paths remain experimental."""
 
 from .outbox import (DesktopDriver, FullTarget, Observation, Outbox, ReceiptEvidence,
                      ReceiptVerifier, Refused, Session, WindowIdentity)

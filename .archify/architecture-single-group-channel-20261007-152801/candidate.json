@@ -1,0 +1,312 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "单群微信 Channel：读取、上下文与回复",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": ".archify/architecture-single-group-channel-20261007-152801/single-group-channel.html"
+  },
+  "components": [
+    {
+      "id": "test_group",
+      "type": "external",
+      "label": "指定测试群",
+      "sublabel": "测试成员与助手身份",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "本期只单群"
+    },
+    {
+      "id": "reader",
+      "type": "backend",
+      "label": "限定记录读取与分页",
+      "sublabel": "原文复制优先 / 区域 OCR",
+      "pos": [
+        340,
+        60
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "自动取数待打通"
+    },
+    {
+      "id": "reconstruct",
+      "type": "backend",
+      "label": "气泡候选与分页重建",
+      "sublabel": "方向核验 · 重叠锚点 · 断档暂停",
+      "pos": [
+        640,
+        60
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "原文解析已有"
+    },
+    {
+      "id": "transcript",
+      "type": "database",
+      "label": "确认会话日志与覆盖范围",
+      "sublabel": "本地 event_id / cursor",
+      "pos": [
+        940,
+        60
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "离线基础"
+    },
+    {
+      "id": "read_cli",
+      "type": "backend",
+      "label": "CLI 读取与状态接口",
+      "sublabel": "现阶段不推进确认游标",
+      "pos": [
+        940,
+        350
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "快照 / 原文解析"
+    },
+    {
+      "id": "agent",
+      "type": "external",
+      "label": "你的现有 Agent",
+      "sublabel": "理解需求 · 追问 · 确认",
+      "pos": [
+        640,
+        350
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "沿用自己的会话"
+    },
+    {
+      "id": "reply_cli",
+      "type": "security",
+      "label": "CLI 回复与执行门禁",
+      "sublabel": "暂停 / 完整性 / 请求幂等",
+      "pos": [
+        340,
+        350
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "当前仅合成测试"
+    },
+    {
+      "id": "executor",
+      "type": "backend",
+      "label": "单账号串行界面执行",
+      "sublabel": "空草稿 · 原文回读 · 单次点击",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "原生适配待实测"
+    },
+    {
+      "id": "readback",
+      "type": "backend",
+      "label": "发送后界面核验",
+      "sublabel": "明确失败 / 未知 / 本机气泡",
+      "pos": [
+        40,
+        650
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "不代替送达回执"
+    },
+    {
+      "id": "outbox",
+      "type": "database",
+      "label": "持久发送尝试 Outbox",
+      "sublabel": "输入前记录 · 点击前记录",
+      "pos": [
+        340,
+        650
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "离线检查通过"
+    },
+    {
+      "id": "receipt",
+      "type": "external",
+      "label": "独立收件端核对",
+      "sublabel": "合成消息送达的验收证据",
+      "pos": [
+        640,
+        650
+      ],
+      "size": [
+        205,
+        86
+      ],
+      "tag": "本期人工核验"
+    }
+  ],
+  "connections": [
+    {
+      "id": "group-read",
+      "from": "test_group",
+      "to": "reader",
+      "label": "群内信息",
+      "variant": "emphasis"
+    },
+    {
+      "id": "read-reconstruct",
+      "from": "reader",
+      "to": "reconstruct",
+      "label": "结构观察"
+    },
+    {
+      "id": "commit-transcript",
+      "from": "reconstruct",
+      "to": "transcript",
+      "label": "唯一连续时追加",
+      "variant": "security"
+    },
+    {
+      "id": "transcript-cli",
+      "from": "transcript",
+      "to": "read_cli",
+      "label": "按本地游标读取"
+    },
+    {
+      "id": "cli-agent",
+      "from": "read_cli",
+      "to": "agent",
+      "label": "读取结果"
+    },
+    {
+      "id": "agent-reply",
+      "from": "agent",
+      "to": "reply_cli",
+      "label": "回复指令",
+      "variant": "emphasis"
+    },
+    {
+      "id": "guard-execute",
+      "from": "reply_cli",
+      "to": "executor",
+      "label": "核验后执行",
+      "variant": "security"
+    },
+    {
+      "id": "execute-readback",
+      "from": "executor",
+      "to": "readback",
+      "label": "一次提交"
+    },
+    {
+      "id": "attempt-before",
+      "from": "executor",
+      "to": "outbox",
+      "label": "操作前落盘",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          142.5,
+          510
+        ],
+        [
+          442.5,
+          510
+        ]
+      ]
+    },
+    {
+      "id": "readback-state",
+      "from": "readback",
+      "to": "outbox",
+      "label": "状态证据"
+    },
+    {
+      "id": "recipient-evidence",
+      "from": "receipt",
+      "to": "outbox",
+      "label": "独立确认",
+      "variant": "dashed"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "本机单群读取与会话维护（尚待真实闭环）",
+      "wraps": [
+        "reader",
+        "reconstruct",
+        "transcript"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "本机执行与结果记录",
+      "wraps": [
+        "executor",
+        "readback",
+        "outbox"
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "当前目标与接口",
+      "items": [
+        "只接现有测试群，CLI 优先，现有 agent 自己理解需求",
+        "channel_id 本地持久绑定一个群，session_id 对应 agent 会话",
+        "MCP、多群与业务工具留到单群稳定之后"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "会话完整性是门禁",
+      "items": [
+        "滚动多页留重叠，接回已确认 checkpoint 再追加",
+        "重复文本、截断气泡、OCR 歧义或锚点缺失不得推进游标",
+        "首次只承诺人工确认起点之后的区间，不声称全部历史"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "实施与证据边界",
+      "items": [
+        "CLI/原生观察/离线拼接和日志基础已在建设中",
+        "OCR 行尚不是可靠消息，真实分页提取与上下文验收未通过",
+        "输入前及点击前消费意图；本机气泡不等于收件端送达"
+      ]
+    }
+  ]
+}

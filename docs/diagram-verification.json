@@ -77,6 +77,37 @@
         ],
         "scope": "Generated diagram only. Raw captures and machine-specific receipts are local and ignored."
       }
+    },
+    {
+      "id": "single-group-channel",
+      "type": "architecture",
+      "quality": "showcase",
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      },
+      "diagnostic_count": 0,
+      "visual_review": {
+        "status": "generated_capture_manually_viewed",
+        "theme": "light",
+        "viewport": [
+          2048,
+          1320
+        ],
+        "scope": "Generated diagram only. Raw captures and machine-specific receipts are local and ignored."
+      },
+      "specification": {
+        "path": ".archify/architecture-single-group-channel-20261007-152801/candidate.json",
+        "sha256": "e35b9581ae722509f64c8a9185217cde0f73594ee09679368182d301e3202ae1",
+        "bytes": 6707
+      },
+      "artifact": {
+        "path": ".archify/architecture-single-group-channel-20261007-152801/single-group-channel.html",
+        "sha256": "d96ddb22851a3927c86342b3b89159be79ef7c2b6258addffa01e2af7f57b30f",
+        "bytes": 769908
+      }
     }
   ]
 }

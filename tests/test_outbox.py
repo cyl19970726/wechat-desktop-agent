@@ -174,6 +174,18 @@ class OutboxTests(unittest.TestCase):
                              marker="OUT-01", text=self.text)
         self.assertNotIn(self.text.encode(), self.path.read_bytes())
 
+    def test_agent_request_identity_is_separate_from_weak_chat_ocr_id(self):
+        session = self.automatic()
+        request = "5d814faa-e0fe-4fe6-a6bc-e882b527da48"
+        kwargs = dict(intent_id=request, source_message_id="agent-request:" + request,
+                      identity_kind="agent_request", target=self.target,
+                      marker=request, text=request + " Plain fixed synthetic reply",
+                      tag_existing=True)
+        self.assertEqual(self.box.prepare(session, **kwargs), "prepared")
+        self.assertEqual(self.box.prepare(session, **kwargs), "existing:prepared")
+        with self.assertRaises(Refused):
+            self.box.prepare(session, **{**kwargs, "text": request + " Different content"})
+
     def test_human_handoff_invalidates_lease_and_old_window_observation(self):
         session = self.automatic()
         self.draft_verified(session)
